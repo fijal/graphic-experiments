@@ -6,6 +6,7 @@
     SubShader{
         Pass{
             CGPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
 
@@ -15,7 +16,7 @@
             float4 _MainTex_ST;
             sampler2D _CameraDepthTexture;
             float4x4 _ViewProjectInverse;
-            sampler3D _Rend3D;
+            Buffer<int> g_OcTree;
 
             struct appdata {
                 float4 vertex : POSITION;
@@ -47,6 +48,34 @@
                 return o;
             }
 
+            float4 apply_node(float4 color, int node_index, float3 position, float halfsize)
+            {
+                while (1)
+                {
+                    int3 bits = int3((int)(position.x >= 0), (int)(position.y >= 0), (int)(position.z >= 0));
+                    bits *= int3(1, 2, 4);
+                    int value = g_OcTree.Load(node_index + bits.x + bits.y + bits.z);
+                    if (value > 0)
+                    {
+                        halfsize *= 0.5;
+                        position -= sign(position) * halfsize;
+                        node_index = value;
+                        /* loop again */
+                    }
+                    else
+                    {
+                        if (value < 0)
+                        {
+                            int3 rgb = int3(value, value >> 8, value >> 16);
+                            rgb &= int3(0xff, 0xff, 0xff);
+                            float4 color2 = float4(rgb * (1.0 / 255.0), 1.0);
+                            color = lerp(color, color2, 0.5);
+                        }
+                        return color;
+                    }
+                }
+            }
+
             float4 frag(v2f i) : COLOR 
             {
                 float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
@@ -67,10 +96,13 @@
 
                 
                 
-
-                float f = tex3D(_Rend3D, W).a;
-                
-                c.rg += f;  /* yellow light, for now */
+                const float INITIAL_HALFSIZE = 16;
+                bool greater_min = all(W > float3(-INITIAL_HALFSIZE, -INITIAL_HALFSIZE, -INITIAL_HALFSIZE));
+                bool lower_max = all(W < float3(INITIAL_HALFSIZE, INITIAL_HALFSIZE, INITIAL_HALFSIZE));
+                if (all(bool2(greater_min, lower_max)))
+                {
+                    c = apply_node(c, 0, W, INITIAL_HALFSIZE);
+                }
                 return c;
             }
             ENDCG

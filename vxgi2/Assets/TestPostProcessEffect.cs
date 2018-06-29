@@ -12,6 +12,8 @@ public class TestPostProcessEffect : MonoBehaviour
     Texture3D rend3d;
     Material mat;
 
+    public Material GetMaterial() { return mat; }
+
     private void Start()
     {
         rend3d = new Texture3D(64, 64, 64, TextureFormat.Alpha8, mipmap: false);
