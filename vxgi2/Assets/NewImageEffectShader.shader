@@ -48,13 +48,24 @@
                 return o;
             }
 
+            float4 rgb2color(int value)
+            {
+                int3 rgb = int3(value, value >> 8, value >> 16);
+                rgb &= int3(0xff, 0xff, 0xff);
+                return float4(rgb * (1.0 / 255.0), 1.0);
+            }
+
             float4 apply_node(float4 color, int node_index, float3 position, float halfsize)
             {
+                float3 fcolor = float3(1, 1, 1);
+
                 while (1)
                 {
+                    fcolor = lerp(fcolor, rgb2color(g_OcTree.Load(node_index)), 0.5);
+
                     int3 bits = int3((int)(position.x >= 0), (int)(position.y >= 0), (int)(position.z >= 0));
                     bits *= int3(1, 2, 4);
-                    int value = g_OcTree.Load(node_index + bits.x + bits.y + bits.z);
+                    int value = g_OcTree.Load(node_index + 1 + bits.x + bits.y + bits.z);
                     if (value > 0)
                     {
                         halfsize *= 0.5;
@@ -66,12 +77,9 @@
                     {
                         if (value < 0)
                         {
-                            int3 rgb = int3(value, value >> 8, value >> 16);
-                            rgb &= int3(0xff, 0xff, 0xff);
-                            float4 color2 = float4(rgb * (1.0 / 255.0), 1.0);
-                            color = lerp(color, color2, 0.5);
+                            fcolor = lerp(fcolor, rgb2color(value), 0.5);
                         }
-                        return color;
+                        return float4(lerp(color, fcolor, 0.5), color.a);
                     }
                 }
             }

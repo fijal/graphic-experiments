@@ -14,6 +14,7 @@ public class OcTreeBuilder : MonoBehaviour
      * 
      * "Node" structure:
      *
+     *     mean_color as RGB
      *     8 * substructure_index
      *
      * Each "substructure_index" is an integer:
@@ -37,42 +38,45 @@ public class OcTreeBuilder : MonoBehaviour
         mat.SetBuffer("g_OcTree", gpu_octree);
     }
 
-    int AddEmptyNode()
-    {
-        int result = cpu_octree.Count;
-        for (int i = 0; i < 8; i++)
-            cpu_octree.Add(0);
-        return result;
-    }
-
     void BuildCpuOcTree()
     {
         cpu_octree = new List<int>();
-        AddNode(Vector3.zero, new Vector3(16, 16, 16));
+
+        Color col;
+        AddNode(Vector3.zero, new Vector3(16, 16, 16), out col);
     }
 
-    int AddNode(Vector3 center, Vector3 halfsize)
+    int AddNode(Vector3 center, Vector3 halfsize, out Color col)
     {
         /* Fill the node starting at 'index' with information from inside the cube
          * at 'center +/- halfsize' */
 
         Vector3 quartersize = halfsize * 0.5f;
         int index = cpu_octree.Count;
+        cpu_octree.Add(0);   /* mean color, will be filled below */
         for (int j = 0; j < 8; j++)
-            cpu_octree.Add(0);   /* will be fixed below */
+            cpu_octree.Add(0);   /* will be filled below */
 
-        int i = index;
+        Color col_sum = new Color(0, 0, 0, 0);
+        int col_count = 0;
+        int i = index + 1;
         for (int z = -1; z <= 1; z += 2)
             for (int y = -1; y <= 1; y += 2)
                 for (int x = -1; x <= 1; x += 2)
                     cpu_octree[i++] = GetOcTreeLink(center + new Vector3(x * quartersize.x,
                                                                          y * quartersize.y,
                                                                          z * quartersize.z),
-                                                    quartersize);
+                                                    quartersize, ref col_sum, ref col_count);
+        if (col_count > 1)
+            col_sum /= col_count;
+        col = col_sum;
+        cpu_octree[index] = Color2RGB(col);
         return index;
     }
 
-    IEnumerable<Vector3[]> GetTriangles()
+    struct Triangle { internal Vector3[] p; internal Color c; }
+
+    IEnumerable<Triangle> GetTriangles()
     {
         foreach (var rend in scene.GetComponentsInChildren<Renderer>())
         {
@@ -85,13 +89,19 @@ public class OcTreeBuilder : MonoBehaviour
             for (int i = 0; i < vertices.Length; i++)
                 vertices1[i] = tr.TransformPoint(vertices[i]);
 
+            var col = rend.sharedMaterial.color;
+
             for (int i = 0; i < triangles.Length; i += 3)
             {
-                yield return new Vector3[]
+                yield return new Triangle
                 {
-                    vertices1[triangles[i]],
-                    vertices1[triangles[i + 1]],
-                    vertices1[triangles[i + 2]],
+                    p = new Vector3[]
+                    {
+                        vertices1[triangles[i]],
+                        vertices1[triangles[i + 1]],
+                        vertices1[triangles[i + 2]],
+                    },
+                    c = col,
                 };
             }
         }
@@ -113,20 +123,31 @@ public class OcTreeBuilder : MonoBehaviour
         return false;
     }
 
-    int GetOcTreeLink(Vector3 center, Vector3 halfsize)
+    static int Color2RGB(Color c)
+    {
+        return (int)(c.r * 255.9) + ((int)(c.g * 255.9) << 8) + ((int)(c.b * 255.9) << 16);
+    }
+
+    int GetOcTreeLink(Vector3 center, Vector3 halfsize, ref Color col_sum, ref int col_count)
     {
         foreach (var tri in GetTriangles())
         {
-            if (Contains(tri, center, halfsize))
+            if (Contains(tri.p, center, halfsize))
             {
                 if (halfsize.x < 0.05f)
                 {
-                    int random_color = Random.Range(0, 0x1000000);
-                    return (-0x80000000) | random_color;
+                    Color c = tri.c;
+                    col_sum += c;
+                    col_count += 1;
+                    return (-0x80000000) | Color2RGB(c);
                 }
                 else
                 {
-                    return AddNode(center, halfsize);
+                    Color col;
+                    int result = AddNode(center, halfsize, out col);
+                    col_sum += col;
+                    col_count += 1;
+                    return result;
                 }
             }
         }
