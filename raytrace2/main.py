@@ -28,9 +28,10 @@ class ScreenWrapper(object):
 
     def __setitem__(self, (x, y), c):
         target = (y * X + x) * 4
-        self._buf[target + 2] = chr(int((c.x) * 255.99))
-        self._buf[target + 1] = chr(int((c.y) * 255.99))
-        self._buf[target    ] = chr(int((c.z) * 255.99))
+        # sqrt() is for gamma correction
+        self._buf[target + 2] = chr(int(math.sqrt(c.x) * 255.99))
+        self._buf[target + 1] = chr(int(math.sqrt(c.y) * 255.99))
+        self._buf[target    ] = chr(int(math.sqrt(c.z) * 255.99))
 
 origin = Vec3(0., 0., 0.)
 vertical = Vec3(0.0, 2.0, 0.0)
@@ -46,18 +47,18 @@ tris = [
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
 
-mat = Material(Vec3(0.95, 0.2, 0.2), softness=0.3)
+mat = Material(Vec3(0.9, 0.04, 0.04), softness=0.3)
 
 for i in range(len(tris)):
     a, b, c = tris[i]
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.75, 0.75, 0.75), mirror=0.5, softness=0.3)
+mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.5, softness=0.3)
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
-mat = Material(Vec3(0.95, 0.95, 0.0))
+mat = Material(Vec3(0.9, 0.9, 0.0))
 tris.append(Sphere(Vec3(0, -100.5, -1), 100, mat))
 
 MAX_BOUNCES = 12
@@ -134,7 +135,7 @@ def color(r, max_bounces=MAX_BOUNCES):
     #t = 0.5 * (unit_direction.y + 1.0)
     #return (1.0 - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.0)
     k = max(0.0, unit_direction.y)
-    v = (1.0 - k) * Vec3(0.8, 0.9, 1.0) + k * Vec3(0.5, 0.7, 1.0)
+    v = (1.0 - k) * Vec3(0.64, 0.81, 1.0) + k * Vec3(0.25, 0.49, 1.0)
     return v
 
 def main(color=color):
