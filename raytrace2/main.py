@@ -46,14 +46,14 @@ tris = [
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
 
-mat = Material(Vec3(0.95, 0.2, 0.2))
+mat = Material(Vec3(0.95, 0.2, 0.2), softness=0.3)
 
 for i in range(len(tris)):
     a, b, c = tris[i]
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.75, 0.75, 0.75))
+mat = Material(Vec3(0.75, 0.75, 0.75), mirror=0.5, softness=0.3)
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
@@ -100,6 +100,8 @@ def color(r, max_bounces=MAX_BOUNCES):
     if closest_t < 1e300:
         pt = r.point_at_parameter(closest_t)
         N = closest_tri.normal(pt)
+        N += random_point() * closest_tri.material.softness
+        N = N.normalize()
         if random() < closest_tri.material.mirror:
             sr = r.B - 2 * N * N.dot(r.B)
             ray = Ray(pt, sr)
