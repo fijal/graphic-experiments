@@ -26,11 +26,18 @@ class ScreenWrapper(object):
     def fill(self):
         self._screen.fill(0)
 
+    def __getitem__(self, (x, y)):
+        target = (y * X + x) * 4
+        return Vec3(
+            ord(self._buf[target + 2]) * (1.0 / 255.99),
+            ord(self._buf[target + 1]) * (1.0 / 255.99),
+            ord(self._buf[target    ]) * (1.0 / 255.99))
+
     def __setitem__(self, (x, y), c):
         target = (y * X + x) * 4
-        self._buf[target + 2] = chr(int(math.sqrt(c.x) * 255.99))
-        self._buf[target + 1] = chr(int(math.sqrt(c.y) * 255.99))
-        self._buf[target    ] = chr(int(math.sqrt(c.z) * 255.99))
+        self._buf[target + 2] = chr(int((c.x) * 255.99))
+        self._buf[target + 1] = chr(int((c.y) * 255.99))
+        self._buf[target    ] = chr(int((c.z) * 255.99))
 
 origin = Vec3(0., 0., 0.)
 vertical = Vec3(0.0, 2.0, 0.0)
@@ -46,22 +53,21 @@ tris = [
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
 
-mat = Material(Vec3(1.0, 0.2, 0.2))
+mat = Material(Vec3(0.95, 0.2, 0.2))
 
 for i in range(len(tris)):
     a, b, c = tris[i]
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.5, 0.5, 0.5))
+mat = Material(Vec3(0.75, 0.75, 0.75))
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
-mat = Material(Vec3(1.0, 1.0, 0.0))
+mat = Material(Vec3(0.95, 0.95, 0.0))
 tris.append(Sphere(Vec3(0, -100.5, -1), 100, mat))
 
-MAX_BOUNCES = 8
-NUM_RAYS = 4
+MAX_BOUNCES = 12
 
 
 
@@ -93,7 +99,7 @@ def color(r, max_bounces=MAX_BOUNCES):
         return Vec3(0., 0., 0.)
     closest_t = 1e300
     for tri in tris:
-        t = tri.hit(r, 0.001, 1000)
+        t = tri.hit(r, 0.0001, 1000)
         if 0 < t < closest_t:
             closest_tri = tri
             closest_t = t
@@ -113,48 +119,47 @@ def color(r, max_bounces=MAX_BOUNCES):
         c2 = closest_tri.material.diffuse_color
         return Vec3(c1.x * c2.x, c1.y * c2.y, c1.z * c2.z)
     unit_direction = r.B.normalize()
-    t = 0.5 * (unit_direction.y + 1.0)
-    return (1.0 - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.0)
+    #t = 0.5 * (unit_direction.y + 1.0)
+    #return (1.0 - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.0)
+    k = max(0.0, unit_direction.y)
+    v = (1.0 - k) * Vec3(0.8, 0.9, 1.0) + k * Vec3(0.5, 0.7, 1.0)
+    return v
 
 def main():
-    done = False
-    t0 = time.time()
     surf = pygame.surface.Surface((X, Y))
     s = ScreenWrapper(surf)
+    iteration_num = 0
 
-    t0 = time.time()
-    for x in range(X):
-        for y in range(Y):
-            res = Vec3(0, 0, 0)
-            for i in range(NUM_RAYS):
+    while True:
+        t0 = time.time()
+        old_frac = iteration_num / float(iteration_num + 1)
+        new_frac = 1.0 / float(iteration_num + 1)
+        for x in range(X):
+            for y in range(Y):
                 u = float(x + random()) / X
                 v = float(y + random()) / Y
                 target = lower_left_corner + v * vertical + u * horizontal
                 r = Ray(origin, target)
-                res += color(r)
-            s[x, Y - y] = res / NUM_RAYS
-    t1 = time.time()
-    dt = t1 - t0
-    textsurface = myfont.render(str(int(dt * 1000)) + "ms", False, (255, 255, 255))
+                res = color(r)
+                position_key = (x, Y - y)
+                old_res = s[position_key]
+                s[position_key] = old_res * old_frac + res * new_frac
 
-    while not done:
+        t1 = time.time()
+        dt = t1 - t0
+        textsurface = myfont.render("iteration %d (%s ms)" % (
+            iteration_num + 1,
+            int(dt * 1000)), False, (255, 255, 255))
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                done = True
-            if event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_q):
-                done = True
-            if event.type == pygame.KEYDOWN and (event.key == pygame.K_w):
-                origin.z -= 0.1
-            if event.type == pygame.KEYDOWN and (event.key == pygame.K_s):
-                origin.z += 0.1
-        screen.fill(0)
-        
+                return
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return
         screen.blit(surf, (0, 0))
         screen.blit(textsurface, (10, 10))
         pygame.display.flip()
-        #
-        raw_input()
-        break
+        iteration_num += 1
 
 if __name__ == '__main__':
     main()
