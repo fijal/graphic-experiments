@@ -107,19 +107,19 @@ def color(r, max_bounces=MAX_BOUNCES):
         pt = r.point_at_parameter(closest_t)
         N = closest_tri.normal(pt)
         if random() < closest_tri.material.mirror:
-            r = r.B - 2 * N * N.dot(r.B)
-            ray = Ray(pt, r)
+            sr = r.B - 2 * N * N.dot(r.B)
+            ray = Ray(pt, sr)
             return color(ray, max_bounces-1)
         else:
             # this should follow the Lambertian model of diffuse surfaces
-            # by computing a source direction 'r' that doesn't depend on
+            # by computing a source direction 'sr' that doesn't depend on
             # the output direction 'r', and with more probability to be
             # near the normal N than near the plane orthogonal to N
             rx, ry = random_point_2d()
             rz = math.sqrt(1.0 - rx*rx - ry*ry)
             n1, n2 = ortho_vec(N)
-            r = N * rz + n1 * rx + n2 * ry
-            ray = Ray(pt, r)
+            sr = N * rz + n1 * rx + n2 * ry
+            ray = Ray(pt, sr)
             c1 = color(ray, max_bounces-1)
             c2 = closest_tri.material.diffuse_color
             return Vec3(c1.x * c2.x, c1.y * c2.y, c1.z * c2.z)
