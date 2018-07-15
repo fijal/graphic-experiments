@@ -130,7 +130,7 @@ def color(r, max_bounces=MAX_BOUNCES):
     v = (1.0 - k) * Vec3(0.8, 0.9, 1.0) + k * Vec3(0.5, 0.7, 1.0)
     return v
 
-def main():
+def main(color=color):
     surf = pygame.surface.Surface((X, Y))
     s = ScreenWrapper(surf)
     iteration_num = 0
