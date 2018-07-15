@@ -47,18 +47,18 @@ tris = [
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
 
-mat = Material(Vec3(0.9, 0.04, 0.04), softness=0.3)
+mat = Material(Vec3(0.9, 0.04, 0.04), mirror=0.03, softness=0.1)
 
 for i in range(len(tris)):
     a, b, c = tris[i]
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.5, softness=0.3)
+mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.03, softness=0.1)
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
-mat = Material(Vec3(0.9, 0.9, 0.0))
+mat = Material(Vec3(0.9, 0.9, 0.0), mirror=0.05, softness=0.1)
 tris.append(Sphere(Vec3(0, -100.5, -1), 100, mat))
 
 MAX_BOUNCES = 12
@@ -100,8 +100,8 @@ def color(r, max_bounces=MAX_BOUNCES):
             closest_t = t
     if closest_t < 1e300:
         pt = r.point_at_parameter(closest_t)
-        N = closest_tri.normal(pt)
-        N += random_point() * closest_tri.material.softness
+        N0 = closest_tri.normal(pt)
+        N = N0 + random_point() * closest_tri.material.softness
         N = N.normalize()
         if random() < closest_tri.material.mirror:
             sr = r.B - 2 * N * N.dot(r.B)
@@ -112,31 +112,40 @@ def color(r, max_bounces=MAX_BOUNCES):
             # by computing a source direction 'sr' that doesn't depend on
             # the output direction 'r', and with more probability to be
             # near the normal N than near the plane orthogonal to N
-            rx, ry = random_point_2d()
-            rz = math.sqrt(1.0 - rx*rx - ry*ry)
             n1, n2 = ortho_vec(N)
-            sr = N * rz + n1 * rx + n2 * ry
+            while True:
+                rx, ry = random_point_2d()
+                rz = math.sqrt(1.0 - rx*rx - ry*ry)
+                sr = N * rz + n1 * rx + n2 * ry
+                if sr.dot(N0) > 0:
+                    break
             ray = Ray(pt, sr)
             c1 = color(ray, max_bounces-1)
-            c2 = closest_tri.material.diffuse_color
             #
+            # 'c1' is a sample, but it is supposed that several such
+            # samples will represent the whole integral over the half-
+            # sphere---without the highly directional sunlight.  Now
+            # we add the sunlight explicitly to 'c1'.  Doing so here
+            # always avoids a lot of noise because the direct sunlight
+            # changes at a high frequency over the angle.
             ray = Ray(pt, SUN_DIRECTION + random_point() * 0.1)
             in_sun = ray.B.normalize().dot(N)
             if in_sun > 0.0:
                 for tri in tris:
                     t = tri.hit(ray, 0.0001, 1000)
                     if t > 0:
-                        in_sun = 0.0
                         break
-            if in_sun > 0.0:
-                c1 += Vec3(0.2, 0.2, 0.2) * in_sun
+                else:
+                    c1 += Vec3(0.4, 0.4, 0.4) * in_sun
+            #
+            c2 = closest_tri.material.diffuse_color
             return Vec3(c1.x * c2.x, c1.y * c2.y, c1.z * c2.z)
     unit_direction = r.B.normalize()
     #t = 0.5 * (unit_direction.y + 1.0)
     #return (1.0 - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.0)
     k = max(0.0, unit_direction.y)
     v = (1.0 - k) * Vec3(0.64, 0.81, 1.0) + k * Vec3(0.25, 0.49, 1.0)
-    return v
+    return v * 0.7
 
 def main(color=color):
     surf = pygame.surface.Surface((X, Y))
