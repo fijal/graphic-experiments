@@ -25,5 +25,5 @@ def color2(r):
 
 
 if __name__ == '__main__':
-    #main(color2)
-    main(lambda r: (color(r) + color2(r)) * 0.5)
+    main(color2)
+    #main(lambda r: (color(r) + color2(r)) * 0.5)

@@ -26,13 +26,6 @@ class ScreenWrapper(object):
     def fill(self):
         self._screen.fill(0)
 
-    def __getitem__(self, (x, y)):
-        target = (y * X + x) * 4
-        return Vec3(
-            ord(self._buf[target + 2]) * (1.0 / 255.99),
-            ord(self._buf[target + 1]) * (1.0 / 255.99),
-            ord(self._buf[target    ]) * (1.0 / 255.99))
-
     def __setitem__(self, (x, y), c):
         target = (y * X + x) * 4
         self._buf[target + 2] = chr(int((c.x) * 255.99))
@@ -68,6 +61,7 @@ mat = Material(Vec3(0.95, 0.95, 0.0))
 tris.append(Sphere(Vec3(0, -100.5, -1), 100, mat))
 
 MAX_BOUNCES = 12
+SUN_DIRECTION = Vec3(-0.2, 1, 0.1).normalize()
 
 
 
@@ -122,6 +116,17 @@ def color(r, max_bounces=MAX_BOUNCES):
             ray = Ray(pt, sr)
             c1 = color(ray, max_bounces-1)
             c2 = closest_tri.material.diffuse_color
+            #
+            ray = Ray(pt, SUN_DIRECTION + random_point() * 0.1)
+            in_sun = ray.B.normalize().dot(N)
+            if in_sun > 0.0:
+                for tri in tris:
+                    t = tri.hit(ray, 0.0001, 1000)
+                    if t > 0:
+                        in_sun = 0.0
+                        break
+            if in_sun > 0.0:
+                c1 += Vec3(0.2, 0.2, 0.2) * in_sun
             return Vec3(c1.x * c2.x, c1.y * c2.y, c1.z * c2.z)
     unit_direction = r.B.normalize()
     #t = 0.5 * (unit_direction.y + 1.0)
@@ -133,6 +138,7 @@ def color(r, max_bounces=MAX_BOUNCES):
 def main(color=color):
     surf = pygame.surface.Surface((X, Y))
     s = ScreenWrapper(surf)
+    s_surface = ffi.new("float[]", 3 * X * Y)
     iteration_num = 0
 
     while True:
@@ -146,9 +152,22 @@ def main(color=color):
                 target = lower_left_corner + v * vertical + u * horizontal
                 r = Ray(origin, target)
                 res = color(r)
-                position_key = (x, Y - y)
-                old_res = s[position_key]
-                s[position_key] = old_res * old_frac + res * new_frac
+                position_key = (x, Y - 1 - y)
+                pos_index = 3 * (position_key[1] * X + position_key[0])
+                old_res = Vec3(s_surface[pos_index],
+                               s_surface[pos_index + 1],
+                               s_surface[pos_index + 2])
+                res = old_res * old_frac + res * new_frac
+                s_surface[pos_index] = res.x
+                s_surface[pos_index + 1] = res.y
+                s_surface[pos_index + 2] = res.z
+                # note: we don't read back s[position_key], because
+                # we loose precision by doing so and the effect is
+                # quite noticeable after several dozen iterations
+                if res.x > 1.0: res.x = 1.0
+                if res.y > 1.0: res.y = 1.0
+                if res.z > 1.0: res.z = 1.0
+                s[position_key] = res
 
         t1 = time.time()
         dt = t1 - t0
