@@ -21,7 +21,7 @@ screen = pygame.display.set_mode((X, Y))
 class ScreenWrapper(object):
     def __init__(self, screen):
         self._screen = screen
-        self._buf = ffi.cast("char*", screen._pixels_address)
+        self._buf = ffi.cast("unsigned char *", screen._pixels_address)
 
     def fill(self):
         self._screen.fill(0)
@@ -29,9 +29,9 @@ class ScreenWrapper(object):
     def __setitem__(self, (x, y), c):
         target = (y * X + x) * 4
         # sqrt() is for gamma correction
-        self._buf[target + 2] = chr(int(math.sqrt(c.x) * 255.99))
-        self._buf[target + 1] = chr(int(math.sqrt(c.y) * 255.99))
-        self._buf[target    ] = chr(int(math.sqrt(c.z) * 255.99))
+        self._buf[target + 2] = int(math.sqrt(c.x) * 255.99)
+        self._buf[target + 1] = int(math.sqrt(c.y) * 255.99)
+        self._buf[target    ] = int(math.sqrt(c.z) * 255.99)
 
 origin = Vec3(0., 0., 0.)
 vertical = Vec3(0.0, 2.0, 0.0)
@@ -47,18 +47,18 @@ tris = [
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
 
-mat = Material(Vec3(0.9, 0.04, 0.04), mirror=0.03, softness=0.1)
+mat = Material(Vec3(0.9, 0.04, 0.04), softness=0.3)
 
 for i in range(len(tris)):
     a, b, c = tris[i]
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.03, softness=0.1)
+mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.5, softness=0.3)
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
-mat = Material(Vec3(0.9, 0.9, 0.0), mirror=0.05, softness=0.1)
+mat = Material(Vec3(0.9, 0.9, 0.0))
 tris.append(Sphere(Vec3(0, -100.5, -1), 100, mat))
 
 MAX_BOUNCES = 12
@@ -136,7 +136,7 @@ def color(r, max_bounces=MAX_BOUNCES):
                     if t > 0:
                         break
                 else:
-                    c1 += Vec3(0.4, 0.4, 0.4) * in_sun
+                    c1 += Vec3(0.3, 0.3, 0.3) * in_sun
             #
             c2 = closest_tri.material.diffuse_color
             return Vec3(c1.x * c2.x, c1.y * c2.y, c1.z * c2.z)
@@ -145,7 +145,7 @@ def color(r, max_bounces=MAX_BOUNCES):
     #return (1.0 - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.0)
     k = max(0.0, unit_direction.y)
     v = (1.0 - k) * Vec3(0.64, 0.81, 1.0) + k * Vec3(0.25, 0.49, 1.0)
-    return v * 0.7
+    return v * 0.8
 
 def main(color=color):
     surf = pygame.surface.Surface((X, Y))
@@ -155,8 +155,7 @@ def main(color=color):
 
     while True:
         t0 = time.time()
-        old_frac = iteration_num / float(iteration_num + 1)
-        new_frac = 1.0 / float(iteration_num + 1)
+        frac = 1.0 / float(iteration_num + 1)
         for x in range(X):
             for y in range(Y):
                 u = float(x + random()) / X
@@ -166,16 +165,16 @@ def main(color=color):
                 res = color(r)
                 position_key = (x, Y - 1 - y)
                 pos_index = 3 * (position_key[1] * X + position_key[0])
-                old_res = Vec3(s_surface[pos_index],
-                               s_surface[pos_index + 1],
-                               s_surface[pos_index + 2])
-                res = old_res * old_frac + res * new_frac
+                res += Vec3(s_surface[pos_index],
+                            s_surface[pos_index + 1],
+                            s_surface[pos_index + 2])
                 s_surface[pos_index] = res.x
                 s_surface[pos_index + 1] = res.y
                 s_surface[pos_index + 2] = res.z
                 # note: we don't read back s[position_key], because
                 # we loose precision by doing so and the effect is
                 # quite noticeable after several dozen iterations
+                res *= frac
                 if res.x > 1.0: res.x = 1.0
                 if res.y > 1.0: res.y = 1.0
                 if res.z > 1.0: res.z = 1.0
