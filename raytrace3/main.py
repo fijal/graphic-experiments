@@ -39,10 +39,13 @@ horizontal = Vec3(4.0, 0.0, 0.0)
 lower_left_corner = Vec3(-2.0, -1.0, -1.0)
 
 tris = [
-#    [(0, 0.8, -1), (-0.8, 0, -1), (0, 0, -0.4)]
-#    [(0, 0, -1), (1, 0, -2), (0, 1, -2)],
-#    [(0, 0, -1), (0, 1, -2), (-1, 0, -2)],
-#    [(0, 0, -1), (-1, 0, -2), (0, -1, -2)],
+    [(-0.1, 0.8, -1), (-0.8, 0, -1), (0, 0.1, -0.4)],
+    [(-0.1, 0.8, -1), (0.8, 0, -1), (0, 0.1, -0.4)],
+    [(-0.1, 0.8, -1), (-0.8, 0, -1), (0, -0.4, -1.6)],
+    [(-0.1, 0.8, -1), (0.8, 0, -1), (0, -0.4, -1.6)],
+    #[(0, 0, -1), (1, 0, -2), (0, 1, -2)],
+    #[(0, 0, -1), (0, 1, -2), (-1, 0, -2)],
+    #[(0, 0, -1), (-1, 0, -2), (0, -1, -2)],
 
      [(0.1, 0.8, -0.7), (-0.8, -0.6, -1), (-0.7, -0.6, -0.4)],
     ]
@@ -55,7 +58,7 @@ for i in range(len(tris)):
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
 mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.8, softness=0.)
-tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
+#tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"
 mat = Material(Vec3(0.9, 0.9, 0.0))
@@ -190,7 +193,7 @@ def color(r):
             else:
                 c += Vec3(0.3, 0.3, 0.3) * in_sun
 
-        if in_sun <= 0.0:
+        if 1:#in_sun <= 0.0:
             leaf = tree.get_leaf(pt)
             for i in range(RAYS):
                 #direction = random_point_sphere()
@@ -202,13 +205,13 @@ def color(r):
                 rz = math.sqrt(1.0 - rx*rx - ry*ry)
                 direction = N * rz + n1 * rx + n2 * ry
 
-                k = tree.unit
+                k = tree.unit * math.sqrt(3)
                 while True:
                     leaf1 = tree.get_leaf(pt + direction * k)
                     if leaf1 is None:
                         break
                     if leaf1 is not leaf and leaf1.blocked:
-                        c *= 0.8
+                        c *= 0.9
                         break
                     k += tree.unit
 
