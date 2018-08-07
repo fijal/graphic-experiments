@@ -54,7 +54,7 @@ for i in range(len(tris)):
     tris[i] = Triangle(Vec3(*a), Vec3(*b), Vec3(*c), mat)
     tris.append(Triangle(Vec3(*a), Vec3(*c), Vec3(*b), mat))  # reversed
 
-mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.5, softness=0.3)
+mat = Material(Vec3(0.56, 0.56, 0.56), mirror=0.8, softness=0.)
 tris.append(Sphere(Vec3(0, 0, -1), 0.5, mat))
 
 # rounded "floor"

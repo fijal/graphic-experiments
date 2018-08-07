@@ -25,7 +25,7 @@ def test_mul_int(v, t):
 @given(vec)
 def test_normalize(v):
     v = Vec3(*v)
-    if v.length() != 0.0:
-        assert v.normalize().length() == 1.0
+    if v.length() > 1e-20:
+        assert abs(v.normalize().length() - 1.0) < 1e-10
         r = Ray(Vec3(0, 0, 0), v.normalize())
         assert (r.point_at_parameter(v.length()) - v).length() < EPSILON
