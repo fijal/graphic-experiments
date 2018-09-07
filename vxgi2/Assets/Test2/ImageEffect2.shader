@@ -16,7 +16,7 @@
             float4 _MainTex_ST;
             sampler2D _CameraDepthTexture;
             float4x4 _ViewProjectInverse;
-            Texture3D _Rend3D;
+            Texture2DArray _Rend3D;
             SamplerState sampler_Rend3D;
 
             struct appdata {
@@ -67,12 +67,29 @@
                 /* That's our world-coordinate position! */
                 float3 W = WD + _WorldSpaceCameraPos;
 
+
                 /* Compute the local position for the Rend3D */
                 //W -= float3(-0.8, 0, -1.2);
-                W *= 32 / 32;
+                //W *= 32 / 32;
 
-                float light_level_up = _Rend3D.Sample(sampler_Rend3D, W).a;
-                c.r += light_level_up;
+                /* int k = 5;
+                float3 delta = float3(0, -1, 0);
+                float3 current_light_color = float3(0, 0, 0);
+                while (k > 0)
+                {
+                    k--;
+                    // sample at 'W + (2**k)*down', reading mipmap level 'k'
+                    float4 sampl = _Rend3D.SampleLevel(sampler_Rend3D, W + delta, k);
+
+
+                    current_light_color *= 1 - sampl.a;
+                    current_light_color += sampl.rgb;
+                }
+                c.rgb += current_light_color;*/
+
+                float3 texel = float3(W.x, W.z, W.y * 32);
+                float3 current_light_color = _Rend3D.Sample(sampler_Rend3D, texel);
+                c.rgb += current_light_color;
                 
                 return c;
             }
